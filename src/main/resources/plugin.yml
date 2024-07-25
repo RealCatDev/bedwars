@@ -1,0 +1,15 @@
+name: CatDevsBedwars
+version: '1.0-SNAPSHOT'
+main: me.catdev.Bedwars
+api-version: '1.8'
+
+commands:
+  bedwars:
+    description: 'Command for managing CatDevsBedwars plugin.'
+    aliases: ["bw", "catdevs-bw"]
+    permission: catdev.bedwars.manager
+    permission-message: You do not have permission to use this command.
+
+permissions:
+  catdev.bedwars.manager:
+    description: 'Allows you to use /bedwars command'

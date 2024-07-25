@@ -1,0 +1,31 @@
+locales:
+  en:
+    # Formatting:
+    #   Default:
+    #     - %playerName%
+    #   type: 'lobby'
+    #     - %playerXp%
+    #     - %playerLvl%
+    #     - %playerXp%
+    #     - %playerRank%
+    #   type: 'match'
+    #     - %playerCount%
+    #     - %maxPlayerCount%
+    joinMessage: '&6&l%playerName%&r joined!' # Default for lobby
+    #joinMessage: '&6+ &l%playerName%&r &8[%playerCount%/%maxPlayerCount%]' # Default for match
+    leaveMessage: '&6&l%playerName%&r left!' # Default for lobby
+    #leaveMessage: '&6- &l%playerName%&r &8[%playerCount%/%maxPlayerCount%]' # Default for match
+settings:
+  # Values:
+  #   - 'lobby' [DEFAULT]
+  #   - 'match'
+  type: 'lobby'
+
+  # type: 'match' exclusive
+  #maxTeamSize: 1 # Maximum count of players in one team
+  #maxTeamCount: 8
+  ##maxPlayerCount: 8 # Optional
+  #minPlayerCount: 2 # Minimum count of players for countdown to begin
+
+  logJoin: false # Not recommended for lobby
+  logLeave: false # Not recommended for lobby
