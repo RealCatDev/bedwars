@@ -3,6 +3,7 @@ package me.catdev.map;
 import me.catdev.Bedwars;
 import me.catdev.config.ConfigManager;
 import me.catdev.match.TeamColor;
+import me.catdev.utils.FileUtils;
 import me.catdev.utils.InventoryHelper;
 import org.bukkit.*;
 import org.bukkit.configuration.ConfigurationSection;
@@ -13,7 +14,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryInteractEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -24,35 +24,25 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class MapManager implements Listener {
 
     private final Bedwars bedwars;
     private Player playerInWizard = null;
-    private Map map = null;
+    private final HashMap<String, World> mapWorlds = new HashMap<>();
+    private final HashMap<String, File> mapFiles = new HashMap<>();
 
     public MapManager(Bedwars bedwars) {
         this.bedwars = bedwars;
     }
 
-    private String name;
-
-    public String getName() {
-        return name;
-    }
-
-    public void Load() {
-        ConfigManager config = this.bedwars.getConfigManager();
-        this.name = config.getString("map.name");
-        if (this.name == null) {
-            this.name = "world";
-        }
-    }
-
-    public void UnloadMap(String mapname) {
-        Bukkit.unloadWorld(mapname, false);
+    public boolean unloadMap(String mapname) {
+        if (!mapWorlds.containsKey(mapname)) return false;
+        Bukkit.unloadWorld(mapWorlds.get(mapname), false);
+        FileUtils.delete(mapFiles.get(mapname));
+        mapWorlds.remove(mapname);
+        mapFiles.remove(mapname);
+        return true;
     }
 
     private Location getLocation(FileConfiguration config, World world, String path) {
@@ -71,38 +61,84 @@ public class MapManager implements Listener {
         return map;
     }
 
-    private Map LoadMap(String mapname, World world) {
-        File mapFile = new File(this.bedwars.getDataFolder(), mapname+".yml");
-        if (mapFile.exists()) {
+    private String GetWorldPath(String mapname) {
+        File listFile = new File(this.bedwars.getDataFolder(), "mapList.yml");
+        if (listFile.exists()) {
             FileConfiguration config = new YamlConfiguration();
             try {
-                config.load(mapFile);
+                config.load(listFile);
             } catch (IOException | InvalidConfigurationException ex) {
                 ex.printStackTrace();
                 return null;
             }
             java.util.Map<String, Object> meh = convertToMap(config);
-            return (Map)meh.get("map");
-        } else {
-            return new Map(mapname);
+            return (String)((java.util.Map<String, Object>)meh.get("maps")).get(mapname);
         }
+        return null;
     }
 
-    public Map LoadMap(String mapname) {
+    private Map LoadMap(String mapname) {
+        File mapsFile = new File(this.bedwars.getDataFolder(), "maps.yml");
+        if (mapsFile.exists()) {
+            FileConfiguration config = new YamlConfiguration();
+            try {
+                config.load(mapsFile);
+            } catch (IOException | InvalidConfigurationException ex) {
+                ex.printStackTrace();
+                return null;
+            }
+            java.util.Map<String, Object> meh = convertToMap(config);
+            return (Map)meh.get(mapname);
+        }
+        return null;
+    }
+
+    private World CopyWorld(String mapname, File src) {
+        File dst = new File(Bukkit.getWorldContainer().getParent(), mapname);
+        try {
+            FileUtils.copy(src, dst);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
         World w = new WorldCreator(mapname).createWorld();
-        w.setAutoSave(false);
-        this.map = LoadMap(mapname, w);
-        return this.map;
+        if (w != null) {
+            w.setAutoSave(false);
+            w.setGameRuleValue("doDaylightCycle", "false");
+        }
+        if (mapFiles.containsKey(mapname)) {
+            mapFiles.remove(mapname);
+            mapWorlds.remove(mapname);
+        }
+        mapFiles.put(mapname, dst);
+        mapWorlds.put(mapname, w);
+        return w;
+    }
+
+    public Map loadMap(String mapname) {
+        String worldPath = GetWorldPath(mapname);
+        if (worldPath == null) return null;
+        World w = CopyWorld(mapname, new File(this.bedwars.getDataFolder(), worldPath));
+        Map map = LoadMap(mapname);
+        if (map != null) {
+            map.setWorld(w);
+        } else {
+            unloadMap(mapname);
+        }
+        return map;
     }
 
     private final ItemStack setLobbyItem = new ItemStack(Material.STICK, 1);
     private final ItemStack lobbyPos1Item = new ItemStack(Material.STICK, 1);
     private final ItemStack lobbyPos2Item = new ItemStack(Material.STICK, 1);
+    private final ItemStack boundItem = new ItemStack(Material.BARRIER, 1);
     private final ItemStack teamSelectorItem = new ItemStack(Material.WOOL, 1, (short)14);
     private final ItemStack setSpawnItem = new ItemStack(Material.STICK, 1);
     private final ItemStack setBedItem = new ItemStack(Material.BED, 1);
     private TeamColor wizardSelectedTeam = null;
     private ArrayList<MapTeam> teams = null;
+    private String wizardMapname = null;
+    private String wizardWorldPath = null;
+    private Map wizardMap = null;
 
     public void Init() {
         {
@@ -117,7 +153,7 @@ public class MapManager implements Listener {
             ItemMeta meta = lobbyPos1Item.getItemMeta();
             meta.setDisplayName("Set lobby pos1");
             ArrayList<String> lore = new ArrayList<>();
-            lore.add("Right click on block to set it's location as lobby pos1");
+            lore.add("Right click on a block to set it's location as lobby pos1");
             meta.setLore(lore);
             lobbyPos1Item.setItemMeta(meta);
         }
@@ -125,15 +161,24 @@ public class MapManager implements Listener {
             ItemMeta meta = lobbyPos2Item.getItemMeta();
             meta.setDisplayName("Set lobby pos2");
             ArrayList<String> lore = new ArrayList<>();
-            lore.add("Right click on block to set it's location as lobby pos2");
+            lore.add("Right click on a block to set it's location as lobby pos2");
             meta.setLore(lore);
             lobbyPos2Item.setItemMeta(meta);
+        }
+        {
+            ItemMeta meta = boundItem.getItemMeta();
+            meta.setDisplayName("Add binding");
+            ArrayList<String> lore = new ArrayList<>();
+            lore.add("Right click on a block to add it's location to bindings");
+            lore.add("If it was a mistake you can save before adding second bound to remove it if it wasn't complete");
+            meta.setLore(lore);
+            boundItem.setItemMeta(meta);
         }
         {
             ItemMeta meta = teamSelectorItem.getItemMeta();
             meta.setDisplayName("Team selector");
             ArrayList<String> lore = new ArrayList<>();
-            lore.add("Right click to open team selector menu");
+            lore.add("Right click to open the team selector menu");
             meta.setLore(lore);
             teamSelectorItem.setItemMeta(meta);
         }
@@ -149,7 +194,7 @@ public class MapManager implements Listener {
             ItemMeta meta = setBedItem.getItemMeta();
             meta.setDisplayName("Set bed");
             ArrayList<String> lore = new ArrayList<>();
-            lore.add("Right click on bed to select it as selected team's bed!");
+            lore.add("Right click on a bed to select it as selected team's bed!");
             meta.setLore(lore);
             setBedItem.setItemMeta(meta);
         }
@@ -158,16 +203,33 @@ public class MapManager implements Listener {
     public boolean startWizard(Player plr, String mapname) {
         if (playerInWizard != null) return false;
         playerInWizard = plr;
-        UnloadMap(mapname);
-        Map m = LoadMap(mapname);
-        plr.teleport(new Location(m.getWorld(), 0, 0, 0));
+        unloadMap(mapname);
+        wizardMapname = mapname;
+        wizardMap = loadMap(mapname);
+        teams = wizardMap.getTeams();
+        wizardWorldPath = GetWorldPath(mapname);
+        plr.teleport(new Location(wizardMap.getWorld(), 0, 0, 0));
         wizardSelectTeam(null);
         plr.setGameMode(GameMode.CREATIVE);
         return true;
     }
 
-    public boolean saveMap() {
-        File mapFile = new File(this.bedwars.getDataFolder(), map.getName()+".yml");
+    public boolean override() {
+        if (wizardMap == null) return false;
+        Bukkit.unloadWorld(wizardMap.getWorld(), true);
+        try {
+            FileUtils.copy(
+                    new File(Bukkit.getWorldContainer().getParent(), wizardMapname),
+                    new File(this.bedwars.getDataFolder(), wizardWorldPath));
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
+
+    public boolean saveMap(String mapname, Map map) {
+        File mapFile = new File(this.bedwars.getDataFolder(), "maps.yml");
         if (!mapFile.exists()) {
             try {
                 mapFile.createNewFile();
@@ -177,7 +239,7 @@ public class MapManager implements Listener {
             }
         }
         FileConfiguration config = new YamlConfiguration();
-        config.set("map", map);
+        config.set(mapname, map);
         try {
             config.save(mapFile);
         } catch (IOException ex) {
@@ -187,16 +249,32 @@ public class MapManager implements Listener {
         return true;
     }
 
+    public boolean resetMap() {
+        if (this.wizardMap == null) return false;
+        this.wizardMap = new Map(null, null, null, null, null);
+        return true;
+    }
+
     public boolean save(Player plr) {
-        map.setTeams(teams);
-        if (!playerInWizard.getUniqueId().equals(plr.getUniqueId()))
+        if (playerInWizard == null || !playerInWizard.getUniqueId().equals(plr.getUniqueId())) {
+            plr.sendMessage("You are not in map wizard!");
             return false;
-        return saveMap();
+        }
+        wizardMap.setTeams(teams);
+        boolean b = saveMap(wizardMapname, wizardMap);
+        if (b) {
+            plr.sendMessage("Map saved successfully!");
+        }
+        return b;
     }
 
     public boolean exitWizard(Player plr) {
-        if (playerInWizard != plr) return false;
+        if (playerInWizard == null || playerInWizard.getUniqueId().equals(plr.getUniqueId())) return false;
         playerInWizard = null;
+        unloadMap(wizardMapname);
+        wizardMapname = null;
+        wizardWorldPath = null;
+        wizardMap = null;
         return true;
     }
 
@@ -212,12 +290,11 @@ public class MapManager implements Listener {
             inv.setItem(0, setLobbyItem);
             inv.setItem(1, lobbyPos1Item);
             inv.setItem(2, lobbyPos2Item);
+            inv.setItem(3, boundItem);
         } else {
             teamSelectorItem.setData(new MaterialData(Material.WOOL, (byte)team.getData()));
             inv.setItem(0, setSpawnItem);
             inv.setItem(1, setBedItem);
-//            inv.setItem(0, setBedItem);
-//            inv.setItem(0, setBedItem);
         }
         inv.setItem(8, teamSelectorItem);
     }
@@ -259,6 +336,17 @@ public class MapManager implements Listener {
         }
     }
 
+    private void assertTeamAvailable(int index) {
+        if (this.teams == null) {
+            this.teams = new ArrayList<>();
+        }
+        if (this.teams.size() < index+1) {
+            for (int i = this.teams.size(); i < index+1; ++i) {
+                this.teams.add(new MapTeam(TeamColor.values()[i]));
+            }
+        }
+    }
+
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent ev) {
         if (playerInWizard == null) return;
@@ -268,24 +356,31 @@ public class MapManager implements Listener {
         if (itemStack == null) return;
         ev.setCancelled(true);
         if (itemStack.getItemMeta().equals(setLobbyItem.getItemMeta())) {
-            map.setLobbySpawnLoc(plr.getLocation());
+            wizardMap.setLobbySpawnLoc(plr.getLocation());
         } else if (itemStack.getItemMeta().equals(lobbyPos1Item.getItemMeta())) {
             if (ev.getClickedBlock() == null) {
-                ev.setCancelled(false);
                 return;
             }
-            map.setLobbyBound1(ev.getClickedBlock().getLocation());
+            wizardMap.setLobbyBound1(ev.getClickedBlock().getLocation());
         } else if (itemStack.getItemMeta().equals(lobbyPos2Item.getItemMeta())) {
             if (ev.getClickedBlock() == null) {
-                ev.setCancelled(false);
                 return;
             }
-            map.setLobbyBound2(ev.getClickedBlock().getLocation());
+            wizardMap.setLobbyBound2(ev.getClickedBlock().getLocation());
+        } else if (itemStack.getItemMeta().equals(boundItem.getItemMeta())) {
+            if (ev.getClickedBlock() == null) {
+                return;
+            }
+            wizardMap.addBound(ev.getClickedBlock().getLocation());
         } else if (itemStack.getItemMeta().equals(teamSelectorItem.getItemMeta())) {
             TeamSelectorInv inv = new TeamSelectorInv(this.bedwars, plr);
             this.bedwars.openInventory(inv);
         } else if (itemStack.getItemMeta().equals(setSpawnItem.getItemMeta())) {
-            map.setLobbySpawnLoc(plr.getLocation());
+            assertTeamAvailable(this.wizardSelectedTeam.ordinal());
+            this.teams.get(this.wizardSelectedTeam.ordinal()).setSpawnLoc(plr.getLocation());
+        } else if (itemStack.getItemMeta().equals(setBedItem.getItemMeta())) {
+            assertTeamAvailable(this.wizardSelectedTeam.ordinal());
+            this.teams.get(this.wizardSelectedTeam.ordinal()).setBedLoc(ev.getClickedBlock().getLocation());
         } else {
             ev.setCancelled(false);
         }

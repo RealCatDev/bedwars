@@ -11,12 +11,22 @@ public abstract class InventoryHelper {
 
     protected final Bedwars bedwars;
     protected final Player player;
+    protected final int size;
     private final Inventory inventory;
 
     public InventoryHelper(Bedwars bedwars, Player player, int size) { // size - Size of my (CatDev's) cock (big)
         this.bedwars = bedwars;
         this.player = player;
-        this.inventory = this.bedwars.getServer().createInventory(player, size);
+        this.size = size;
+        this.inventory = this.bedwars.getServer().createInventory(player, this.size);
+        construct();
+    }
+
+    public InventoryHelper(Bedwars bedwars, Player player, int size, String title) {
+        this.bedwars = bedwars;
+        this.player = player;
+        this.size = size;
+        this.inventory = this.bedwars.getServer().createInventory(player, this.size, title);
         construct();
     }
 

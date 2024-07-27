@@ -6,6 +6,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 
 public class InventoryEvents implements Listener {
 
@@ -18,11 +19,23 @@ public class InventoryEvents implements Listener {
     @EventHandler
     public void onInventoryClick(InventoryClickEvent ev) {
         if (ev.getInventory() == null || !(ev.getInventory().getHolder() instanceof Player)) return;
-        if (!bedwars.isInvOpen((Player)ev.getInventory().getHolder())) return;
+        Player holder = (Player) ev.getInventory().getHolder();
+        if (!bedwars.isInvOpen(holder)) return;
 
         InventoryHelper inv = bedwars.getInventory((Player)ev.getInventory().getHolder());
         if (inv == null) return;
         inv.onInvClick(ev);
+    }
+
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent ev) {
+        if (ev.getInventory() == null || !(ev.getInventory().getHolder() instanceof Player)) return;
+        Player holder = (Player) ev.getInventory().getHolder();
+        if (!bedwars.isInvOpen(holder)) return;
+
+        InventoryHelper inv = bedwars.getInventory((Player)ev.getInventory().getHolder());
+        if (inv == null || !ev.getInventory().equals(inv.getInventory())) return;
+        this.bedwars.closeInventory(inv);
     }
 
 }

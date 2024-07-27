@@ -12,4 +12,6 @@ commands:
 
 permissions:
   catdev.bedwars.manager:
-    description: 'Allows you to use /bedwars command'
+    description: 'Grants permissions for management actions.'
+  catdev.bedwars.admin:
+    description: 'Grants full permission for any action.'

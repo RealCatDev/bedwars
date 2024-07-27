@@ -17,7 +17,7 @@ public class Team {
     public Team(TeamColor teamColor, Location bedLoc) {
         this.teamColor = teamColor;
         this.bedLoc = bedLoc;
-        this.bedAlive = false;
+        this.bedAlive = true;
     }
 
     public Team(TeamColor teamColor) {
@@ -35,7 +35,16 @@ public class Team {
         this.alivePlayers.add(plr.getPlayer());
     }
 
-    // Returns true if bed is not alive
+    public void removePlayer(Player plr) {
+        players.removeIf((MatchPlayer p) -> { return p.getPlayer().equals(plr); });
+        alivePlayers.remove(plr);
+    }
+
+    public ArrayList<MatchPlayer> getPlayers() {
+        return players;
+    }
+
+    // Returns true if bed is alive
     public boolean playerDied(Player plr) {
         if (!bedAlive) {
             alivePlayers.remove(plr);
@@ -49,10 +58,6 @@ public class Team {
 
     public boolean isBedAlive() {
         return this.bedAlive;
-    }
-
-    public boolean isInUse() {
-        return !alivePlayers.isEmpty() || bedAlive;
     }
 
     public boolean isAlive() {

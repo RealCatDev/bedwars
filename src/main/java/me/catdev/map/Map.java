@@ -13,37 +13,24 @@ import java.util.stream.Collectors;
 
 public class Map implements ConfigurationSerializable {
 
-    private final String name;
     private Location lobbySpawnLoc;
     private Location lobbyBound1;
     private Location lobbyBound2;
+    private ArrayList<Location> bounds;
     private ArrayList<MapTeam> teams;
-    private final World world;
+    private World world;
 
-    public Map(String name) {
-        this.name = name;
-        this.lobbySpawnLoc = null;
-        this.lobbyBound1 = null;
-        this.lobbyBound2 = null;
-        this.teams = null;
-        this.world = Bedwars.getInstance().getServer().getWorld(name);
-    }
-
-    public Map(String name, Location lobbySpawnLoc, Location lobbyBound1, Location lobbyBound2, ArrayList<MapTeam> teams) {
-        this.name = name;
+    public Map(Location lobbySpawnLoc, Location lobbyBound1, Location lobbyBound2, ArrayList<Location> bounds, ArrayList<MapTeam> teams) {
         this.lobbySpawnLoc = lobbySpawnLoc;
         this.lobbyBound1 = lobbyBound1;
         this.lobbyBound2 = lobbyBound2;
+        this.bounds = bounds;
         this.teams = teams;
-        this.world = Bedwars.getInstance().getServer().getWorld(name);
+        this.world = null;
     }
 
     public boolean isComplete() {
-        return name != null && lobbySpawnLoc != null && lobbyBound1 != null && lobbyBound2 != null && teams != null && world != null;
-    }
-
-    public String getName() {
-        return name;
+        return lobbySpawnLoc != null && teams != null && world != null;
     }
 
     public Location getLobbySpawnLoc() {
@@ -56,6 +43,10 @@ public class Map implements ConfigurationSerializable {
 
     public Location getLobbyBound2() {
         return lobbyBound2;
+    }
+
+    public ArrayList<Location> getBounds() {
+        return bounds;
     }
 
     public ArrayList<MapTeam> getTeams() {
@@ -78,33 +69,57 @@ public class Map implements ConfigurationSerializable {
         this.lobbyBound2 = lobbyBound2;
     }
 
+    public void setBounds(ArrayList<Location> bounds) {
+        this.bounds = bounds;
+    }
+
+    public void addBound(Location bound) {
+        if (this.bounds == null) {
+            this.bounds = new ArrayList<>();
+        }
+        this.bounds.add(bound);
+    }
+
     public void setTeams(ArrayList<MapTeam> teams) {
         this.teams = teams;
     }
 
+    public void setWorld(World world) {
+        this.world = world;
+    }
+
     @Override
     public java.util.Map<String, Object> serialize() {
+        if (bounds != null && (bounds.size()%2)==1) {
+            bounds.remove(bounds.size()-1);
+        }
         java.util.Map<String, Object> serialized = new HashMap<>();
-        serialized.put("name", name);
         serialized.put("lobbySpawn", lobbySpawnLoc);
         serialized.put("lobbyBound1", lobbyBound1);
         serialized.put("lobbyBound2", lobbyBound2);
+        serialized.put("bounds", bounds);
         serialized.put("teams", teams);
         return serialized;
     }
 
     public static Map deserialize(java.util.Map<String, Object> deserialize) {
+        ArrayList<Location> bounds = null;
+        if (deserialize.get("bounds") == null) bounds = new ArrayList<>();
+        else {
+            bounds = ((List<Location>) deserialize.get("bounds")).stream()
+                    .collect(Collectors.toCollection(ArrayList::new));
+        }
         ArrayList<MapTeam> teams = null;
         if (deserialize.get("teams") == null) teams = new ArrayList<>();
         else {
-            teams = ((List<Object>) deserialize.get("teams")).stream()
-                    .map(serializedTeam -> MapTeam.deserialize((java.util.Map<String, Object>) serializedTeam))
+            teams = ((List<MapTeam>) deserialize.get("teams")).stream()
                     .collect(Collectors.toCollection(ArrayList::new));
         }
-        return new Map((String) deserialize.get("name"),
+        return new Map(
                 (Location)deserialize.get("lobbySpawn"),
                 (Location)deserialize.get("lobbyBound1"),
                 (Location)deserialize.get("lobbyBound2"),
+                bounds,
                 teams);
     }
 }

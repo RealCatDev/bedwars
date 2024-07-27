@@ -1,15 +1,17 @@
 package me.catdev.match;
 
+import org.bukkit.DyeColor;
+
 public enum TeamColor {
 
-    RED("red", "&4", (short)14),
-    BLUE("blue", "&1", (short)11),
-    GREEN("green", "&2", (short)13),
-    YELLOW("yellow", "&e", (short)4),
-    AQUA("aqua", "&b", (short)9),
-    WHITE("white", "&f", (short)0),
-    PINK("pink", "&d", (short)6),
-    GRAY("gray", "&7", (short)7);
+    RED("red", "&4", DyeColor.RED.getData()),
+    BLUE("blue", "&1", DyeColor.BLUE.getData()),
+    GREEN("green", "&2", DyeColor.LIME.getData()),
+    YELLOW("yellow", "&e", DyeColor.YELLOW.getData()),
+    AQUA("aqua", "&b", DyeColor.CYAN.getData()),
+    WHITE("white", "&f", DyeColor.WHITE.getData()),
+    PINK("pink", "&d", DyeColor.PINK.getData()),
+    GRAY("gray", "&7", DyeColor.GRAY.getData());
 
     private final String name;
     private final String style;

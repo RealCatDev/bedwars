@@ -3,6 +3,8 @@ package me.catdev.common;
 import me.catdev.Bedwars;
 import me.catdev.config.ConfigManager;
 
+import java.io.IOException;
+
 public class SettingsManager {
 
     private final Bedwars bedwars;
@@ -50,49 +52,18 @@ public class SettingsManager {
     }
 
     public boolean load() {
-        ConfigManager config = this.bedwars.getConfigManager();
-        String serverTypeStr = config.getString("settings.type");
-        if (serverTypeStr.equalsIgnoreCase("lobby")) {
+        try {
+            serverType = ServerType.valueOf(((String) this.bedwars.getConfig().get("settings.type", "LOBBY")).toUpperCase());
+        } catch (IllegalArgumentException ex) {
             serverType = ServerType.LOBBY;
-        } else if (serverTypeStr.equalsIgnoreCase("match")) {
-            serverType = ServerType.MATCH;
-        } else {
-            return false;
         }
-
-        Object logJoinObj = config.getObject("settings.logJoin");
-        if (logJoinObj != null && (boolean)logJoinObj) {
-            logJoin = true;
-        }
-
-        Object logLeaveObj = config.getObject("settings.logLeave");
-        if (logLeaveObj != null && (boolean)logLeaveObj) {
-            logLeave = true;
-        }
-
-        Object maxTeamPlayerCountObj = config.getObject("settings.maxTeamSize");
-        if (maxTeamPlayerCountObj instanceof Integer) {
-            maxTeamSize = (int)maxTeamPlayerCountObj;
-        }
-
-        Object maxTeamCountObj = config.getObject("settings.maxTeamCount");
-        if (maxTeamCountObj instanceof Integer) {
-            maxTeamCount = (int)maxTeamCountObj;
-        }
-
-        Object maxPlayerCountObj = config.getObject("settings.maxPlayerCount");
-        if (maxPlayerCountObj instanceof Integer) {
-            maxPlayerCount = (int)maxPlayerCountObj;
-        } else {
-            maxPlayerCount = maxTeamSize *maxPlayerCount;
-        }
-
-        Object minPlayerCountObj = config.getObject("settings.minPlayerCount");
-        if (minPlayerCountObj instanceof Integer) {
-            minPlayerCount = (int)minPlayerCountObj;
-        } else {
-            minPlayerCount = maxPlayerCount/4;
-        }
+        logJoin = (boolean)this.bedwars.getConfig().get("settings.logJoin", false);
+        logLeave = (boolean)this.bedwars.getConfig().get("settings.logLeave", false);
+        // Match exclusive:
+        maxTeamSize = (int) this.bedwars.getConfig().get("settings.maxTeamSize", 1);
+        maxTeamCount = (int) this.bedwars.getConfig().get("settings.maxTeamCount", 8);
+        maxPlayerCount = (int) this.bedwars.getConfig().get("settings.maxPlayerCount", maxTeamSize*maxTeamCount);
+        minPlayerCount = (int) this.bedwars.getConfig().get("settings.minPlayerCount", maxPlayerCount/4);
 
         return true;
     }

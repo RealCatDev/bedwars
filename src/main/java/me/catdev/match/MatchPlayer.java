@@ -5,24 +5,22 @@ import org.bukkit.entity.Player;
 public class MatchPlayer {
 
     private final Player player;
-    private final Team team;
-    private boolean isAlive;
+    private TeamColor team;
 
-    public MatchPlayer(Player player, Team team) {
+    public MatchPlayer(Player player, TeamColor team) {
         this.player = player;
         this.team = team;
-        this.isAlive = true;
     }
 
     public Player getPlayer() {
         return player;
     }
 
-    public Team getTeam() {
+    public TeamColor getTeam() {
         return team;
     }
 
-    public boolean isAlive() {
-        return isAlive;
+    public void setTeam(TeamColor team) {
+        this.team = team;
     }
 }

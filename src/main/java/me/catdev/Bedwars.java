@@ -4,6 +4,7 @@ import me.catdev.commands.BedwarsCommand;
 import me.catdev.common.ServerType;
 import me.catdev.common.SettingsManager;
 import me.catdev.config.ConfigManager;
+import me.catdev.events.EnvEvents;
 import me.catdev.events.InventoryEvents;
 import me.catdev.map.Map;
 import me.catdev.map.MapManager;
@@ -84,20 +85,40 @@ public final class Bedwars extends JavaPlugin {
             this.getLogger().warning("Failed to enable me.catdev.bedwars! (settingsManager.load())");
             return;
         }
+
+        this.getLogger().info("==========[ CatDevsBedwars ]==========");
+        this.getLogger().info("Config:");
+        this.getLogger().info("  logJoin:        "+this.getSettingsManager().doLogJoin());
+        this.getLogger().info("  logLeave:       "+this.getSettingsManager().doLogLeave());
+        this.getLogger().info("  type:           "+this.getSettingsManager().getServerType().name().toLowerCase());
+        if (this.getSettingsManager().getServerType() == ServerType.LOBBY) {
+
+        } else if (this.getSettingsManager().getServerType() == ServerType.MATCH) {
+            this.getLogger().info("  maxTeamSize:    "+this.getSettingsManager().getMaxTeamSize());
+            this.getLogger().info("  maxTeamCount:   "+this.getSettingsManager().getMaxTeamCount());
+            this.getLogger().info("  maxPlayerCount: "+this.getSettingsManager().getMaxPlayerCount());
+            this.getLogger().info("  minPlayerCount: "+this.getSettingsManager().getMinPlayerCount());
+        }
+        this.getLogger().info("==========[ CatDevsBedwars ]==========");
+
         this.getLogger().info("me.catdev.bedwars enabled!");
         this.getCommand("bedwars").setExecutor(new BedwarsCommand(this));
         this.getServer().getPluginManager().registerEvents(new InventoryEvents(this), this);
+        this.getServer().getPluginManager().registerEvents(new EnvEvents(), this);
         if (this.settingsManager.getServerType() == ServerType.MATCH) {
             this.getServer().getPluginManager().registerEvents(this.matchManager, this);
             this.getServer().getPluginManager().registerEvents(this.mapManager, this);
             this.mapManager.Init();
-            this.mapManager.Load();
-            if (!this.matchManager.Load()) return;
+            if (!this.matchManager.Load()) {
+                this.getLogger().severe("Shit went bad");
+            }
         }
     }
 
     @Override
     public void onDisable() {
-        this.getLogger().info("me.catdev.bedwars disabled!");
+        if (!this.mapManager.unloadMap("default")) {
+            this.getLogger().severe("Failed to unload map!");
+        }
     }
 }

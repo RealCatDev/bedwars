@@ -44,7 +44,7 @@ public class ScoreboardManager {
                 int i = 0;
                 for (; i < teams.size(); ++i) {
                     Team team = teams.get(i);
-                    lines[3+i] = ChatColor.translateAlternateColorCodes('&', " "  + team.getTeamColor().getStyle() + team.getTeamColor().getName() + "&r: " + (team.isInUse()?(team.isBedAlive()?"✔":(team.isAlive()?(team.alivePlayerCount()):"x")):"x") + (team.containsPlayer(player)?" (you)":""));
+                    lines[3+i] = ChatColor.translateAlternateColorCodes('&', " "  + team.getTeamColor().getStyle() + team.getTeamColor().getName() + "&r: " + (team.isAlive()?(team.isBedAlive()?"✔":Integer.toString(team.alivePlayerCount())):"x") + (team.containsPlayer(player)?" (you)":""));
                 }
                 int j = 3+i+1;
                 lines[j] = "Kills: 0";
