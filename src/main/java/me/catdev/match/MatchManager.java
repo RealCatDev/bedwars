@@ -383,12 +383,12 @@ public class MatchManager implements Listener {
                     }
                 }
                 if (b && aliveTeams > 1) {
-                    new Respawn(plr, new Location(map.getWorld(), 0.5, 1, 0.5)).runTaskLater(this.bedwars, 20*5L);
+                    Location respawnLoc = this.map.getTeams().get(matchPlayers.get(plr).getTeam().ordinal()).getSpawnLoc();
+                    if (respawnLoc == null) respawnLoc = new Location(map.getWorld(), 0.5, 1, 0.5);
+                    new Respawn(plr, respawnLoc).runTaskLater(this.bedwars, 20*5L);
                     new Countdown(this.bedwars, plr, 5).runTaskTimer(this.bedwars, 0L, 20L);
                 } else {
                     ev.setDeathMessage(ev.getDeathMessage() + " Final kill!");
-                }
-                if (aliveTeams <= 1) {
                     Finish();
                 }
             } break;
@@ -574,7 +574,9 @@ public class MatchManager implements Listener {
             }
             for (MatchPlayer matchPlr : team.getPlayers()) {
                 Player plr = matchPlr.getPlayer();
-                saveTeleport(plr, new Location(map.getWorld(), 0.5, 1, 0.5));
+                Location respawnLoc = this.map.getTeams().get(team.getTeamColor().ordinal()).getSpawnLoc();
+                if (respawnLoc == null) respawnLoc = new Location(map.getWorld(), 0.5, 1, 0.5);
+                saveTeleport(plr, respawnLoc);
                 plr.getInventory().clear();
                 plr.setHealth(plr.getMaxHealth());
             }
