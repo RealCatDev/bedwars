@@ -20,7 +20,7 @@ public class ScoreboardManager {
     public void ShowScoreboard(Player player) {
         FastBoard board = new FastBoard(player);
         board.updateTitle(ChatColor.GOLD + "BEDWARS");
-        if (this.bedwars.getSettingsManager().getServerType() == ServerType.MATCH) {
+        if (this.bedwars.getSettings().serverType == ServerType.MATCH) {
             if (this.bedwars.getMatchManager().isInProgress()) {
                 ArrayList<Team> teams = this.bedwars.getMatchManager().getTeams();
                 String[] lines = {

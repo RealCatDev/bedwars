@@ -2,7 +2,10 @@ package me.catdev;
 
 import me.catdev.commands.BedwarsCommand;
 import me.catdev.common.ServerType;
-import me.catdev.common.SettingsManager;
+import me.catdev.match.generator.GenLoot;
+import me.catdev.match.generator.Generator;
+import me.catdev.settings.Settings;
+import me.catdev.settings.SettingsManager;
 import me.catdev.config.ConfigManager;
 import me.catdev.events.EnvEvents;
 import me.catdev.events.InventoryEvents;
@@ -12,7 +15,6 @@ import me.catdev.map.MapTeam;
 import me.catdev.match.MatchManager;
 import me.catdev.scoreboard.ScoreboardManager;
 import me.catdev.utils.InventoryHelper;
-import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.configuration.serialization.ConfigurationSerialization;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -22,19 +24,20 @@ import java.util.HashMap;
 public final class Bedwars extends JavaPlugin {
 
     private final ConfigManager configManager = new ConfigManager(this);
-    private final SettingsManager settingsManager = new SettingsManager(this);
     private final MatchManager matchManager = new MatchManager(this);
     private final MapManager mapManager = new MapManager(this);
     private final ScoreboardManager scoreboardManager = new ScoreboardManager(this);
     static private Bedwars instance = null;
     private final HashMap<Player, InventoryHelper> inventories = new HashMap<>();
 
-    public ConfigManager getConfigManager() {
-        return configManager;
+    private Settings settings = null;
+
+    public void setSettings(Settings settings) {
+        this.settings = settings;
     }
 
-    public SettingsManager getSettingsManager() {
-        return settingsManager;
+    public ConfigManager getConfigManager() {
+        return configManager;
     }
 
     public MatchManager getMatchManager() {
@@ -47,6 +50,10 @@ public final class Bedwars extends JavaPlugin {
 
     public ScoreboardManager getScoreboardManager() {
         return scoreboardManager;
+    }
+
+    public Settings getSettings() {
+        return settings;
     }
 
     public void openInventory(InventoryHelper inv) {
@@ -75,29 +82,28 @@ public final class Bedwars extends JavaPlugin {
     static {
         ConfigurationSerialization.registerClass(Map.class);
         ConfigurationSerialization.registerClass(MapTeam.class);
+        ConfigurationSerialization.registerClass(Generator.class);
+        ConfigurationSerialization.registerClass(GenLoot.class);
     }
 
     @Override
     public void onEnable() {
         instance = this;
         this.saveDefaultConfig();
-        if (!this.settingsManager.load()) {
-            this.getLogger().warning("Failed to enable me.catdev.bedwars! (settingsManager.load())");
-            return;
-        }
+        SettingsManager.load(this);
 
         this.getLogger().info("==========[ CatDevsBedwars ]==========");
         this.getLogger().info("Config:");
-        this.getLogger().info("  logJoin:        "+this.getSettingsManager().doLogJoin());
-        this.getLogger().info("  logLeave:       "+this.getSettingsManager().doLogLeave());
-        this.getLogger().info("  type:           "+this.getSettingsManager().getServerType().name().toLowerCase());
-        if (this.getSettingsManager().getServerType() == ServerType.LOBBY) {
+        this.getLogger().info("  logJoin:        "+this.settings.logJoin);
+        this.getLogger().info("  logLeave:       "+this.settings.logLeave);
+        this.getLogger().info("  type:           "+this.settings.serverType.name().toLowerCase());
+        if (this.settings.serverType == ServerType.LOBBY) {
 
-        } else if (this.getSettingsManager().getServerType() == ServerType.MATCH) {
-            this.getLogger().info("  maxTeamSize:    "+this.getSettingsManager().getMaxTeamSize());
-            this.getLogger().info("  maxTeamCount:   "+this.getSettingsManager().getMaxTeamCount());
-            this.getLogger().info("  maxPlayerCount: "+this.getSettingsManager().getMaxPlayerCount());
-            this.getLogger().info("  minPlayerCount: "+this.getSettingsManager().getMinPlayerCount());
+        } else if (this.settings.serverType == ServerType.MATCH) {
+            this.getLogger().info("  maxTeamSize:    "+this.settings.maxTeamSize);
+            this.getLogger().info("  maxTeamCount:   "+this.settings.maxTeamCount);
+            this.getLogger().info("  maxPlayerCount: "+this.settings.maxPlayerCount);
+            this.getLogger().info("  minPlayerCount: "+this.settings.minPlayerCount);
         }
         this.getLogger().info("==========[ CatDevsBedwars ]==========");
 
@@ -105,7 +111,7 @@ public final class Bedwars extends JavaPlugin {
         this.getCommand("bedwars").setExecutor(new BedwarsCommand(this));
         this.getServer().getPluginManager().registerEvents(new InventoryEvents(this), this);
         this.getServer().getPluginManager().registerEvents(new EnvEvents(), this);
-        if (this.settingsManager.getServerType() == ServerType.MATCH) {
+        if (this.settings.serverType == ServerType.MATCH) {
             this.getServer().getPluginManager().registerEvents(this.matchManager, this);
             this.getServer().getPluginManager().registerEvents(this.mapManager, this);
             this.mapManager.Init();

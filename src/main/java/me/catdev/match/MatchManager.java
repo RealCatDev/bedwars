@@ -4,6 +4,8 @@ import me.catdev.Bedwars;
 import me.catdev.common.ServerType;
 import me.catdev.map.Map;
 import me.catdev.map.MapTeam;
+import me.catdev.match.generator.GenLoot;
+import me.catdev.match.generator.Generator;
 import me.catdev.utils.Evaluator;
 import me.catdev.utils.InventoryHelper;
 import org.bukkit.*;
@@ -23,14 +25,13 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.material.Bed;
+import org.bukkit.material.Directional;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.ListIterator;
-import java.util.Stack;
+import java.util.*;
 
 public class MatchManager implements Listener {
 
@@ -146,13 +147,15 @@ public class MatchManager implements Listener {
         @Override
         public void run() {
             player.setGameMode(GameMode.SURVIVAL);
+            player.setFallDistance(0);
             player.teleport(respawnLoc);
+            player.setFallDistance(0);
         }
     }
 
     static class TeamSelectorInv extends InventoryHelper {
         private static int calcSize() {
-            int maxTeamCount = Bedwars.getInstance().getSettingsManager().getMaxTeamCount();
+            int maxTeamCount = Bedwars.getInstance().getSettings().maxTeamCount;
             int teamRows = (int) Math.ceil(maxTeamCount/4.0);
             return (teamRows*9)+9*(3+teamRows-1);
         }
@@ -253,6 +256,9 @@ public class MatchManager implements Listener {
     private ArrayList<Team> teams = null;
     private ArrayList<Player> players = null;
     private ArrayList<Player> lobbyPlayers = null;
+    private ArrayList<Generator> teamGenerators = null;
+    private ArrayList<Generator> diamondGenerators = null;
+    private ArrayList<Generator> emeraldGenerators = null;
     private HashMap<Player, MatchPlayer> matchPlayers = null;
 
     private final Bedwars bedwars;
@@ -267,6 +273,12 @@ public class MatchManager implements Listener {
         }
     }
 
+    private void saveTeleport(Player plr, Location loc) {
+        plr.setFallDistance(0);
+        plr.teleport(loc);
+        plr.setFallDistance(0);
+    }
+
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent ev) {
         Player plr = ev.getPlayer();
@@ -277,7 +289,7 @@ public class MatchManager implements Listener {
             plr.kickPlayer("Match is in progress/loading!");
             return;
         }
-        if (players.size() >= this.bedwars.getSettingsManager().getMaxPlayerCount()) {
+        if (players.size() >= this.bedwars.getSettings().maxPlayerCount) {
             ev.setJoinMessage("");
             plr.kickPlayer("Match is full!");
             return;
@@ -288,18 +300,18 @@ public class MatchManager implements Listener {
         HashMap<String, Object> variables = new HashMap<>();
         variables.put("playerName", plr.getDisplayName());
         variables.put("playerCount", players.size());
-        variables.put("maxPlayerCount", this.bedwars.getSettingsManager().getMaxPlayerCount());
+        variables.put("maxPlayerCount", this.bedwars.getSettings().maxPlayerCount);
 
         String message = this.bedwars.getConfigManager().getString("locales.en.joinMessage");
         message = ChatColor.translateAlternateColorCodes('&', message);
         message = Evaluator.evaluate(message, variables);
         ev.setJoinMessage(message);
 
-        if (matchState == MatchState.LOBBY && players.size() >= this.bedwars.getSettingsManager().getMinPlayerCount()) {
+        if (matchState == MatchState.LOBBY && players.size() >= this.bedwars.getSettings().minPlayerCount) {
             StartCountdown(true);
         }
 
-        plr.teleport(map.getLobbySpawnLoc());
+        saveTeleport(plr, map.getLobbySpawnLoc());
         plr.getInventory().clear();
         {
             ItemStack selectorItem = new ItemStack(Material.WOOL, 1, TeamColor.WHITE.getData());
@@ -320,19 +332,19 @@ public class MatchManager implements Listener {
         Player plr = ev.getPlayer();
         if (!players.contains(plr)) return;
         players.remove(plr);
-        lobbyPlayers.remove(plr);
+        if (lobbyPlayers != null) lobbyPlayers.remove(plr);
 
         HashMap<String, Object> variables = new HashMap<>();
         variables.put("playerName", plr.getDisplayName());
         variables.put("playerCount", players.size());
-        variables.put("maxPlayerCount", this.bedwars.getSettingsManager().getMaxPlayerCount());
+        variables.put("maxPlayerCount", this.bedwars.getSettings().maxPlayerCount);
 
         String message = this.bedwars.getConfigManager().getString("locales.en.leaveMessage");
         message = ChatColor.translateAlternateColorCodes('&', message);
         message = Evaluator.evaluate(message, variables);
         ev.setQuitMessage(message);
 
-        if (matchState == MatchState.STARTING && players.size() < this.bedwars.getSettingsManager().getMinPlayerCount()) {
+        if (matchState == MatchState.STARTING && players.size() < this.bedwars.getSettings().minPlayerCount) {
             matchState = MatchState.LOBBY;
             countdown.cancel();
             countdown = null;
@@ -348,14 +360,13 @@ public class MatchManager implements Listener {
 
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent ev) {
+        ev.getDrops().clear();
         Player plr = ev.getEntity();
         plr.setHealth(plr.getMaxHealth());
-        plr.getInventory().clear();
         switch (matchState) {
             case LOBBY:
             case STARTING: {
-                plr.teleport(map.getLobbySpawnLoc());
-                plr.setFallDistance(0);
+                saveTeleport(plr, map.getLobbySpawnLoc());
                 plr.setGameMode(GameMode.SURVIVAL);
             } break;
             case INGAME: {
@@ -363,7 +374,7 @@ public class MatchManager implements Listener {
                 Location newLoc = map.getLobbySpawnLoc();
                 newLoc.setY(newLoc.getY()+6);
                 plr.setGameMode(GameMode.SPECTATOR);
-                plr.teleport(newLoc);
+                saveTeleport(plr, newLoc);
                 boolean b = teams.get(matchPlayer.getTeam().ordinal()).playerDied(plr);
                 int aliveTeams = 0;
                 for (Team team : teams) {
@@ -382,8 +393,7 @@ public class MatchManager implements Listener {
                 }
             } break;
             case FINISH: {
-                plr.teleport(new Location(map.getWorld(), 0.5, 1, 0.5));
-                plr.setFallDistance(0);
+                saveTeleport(plr, new Location(map.getWorld(), 0.5, 1, 0.5));
                 plr.setGameMode(GameMode.SURVIVAL);
                 plr.setAllowFlight(true);
             }
@@ -408,6 +418,27 @@ public class MatchManager implements Listener {
         return (x0 >= minX && x0 <= maxX) &&
                 (y0 >= minY && y0 <= maxY) &&
                 (z0 >= minZ && z0 <= maxZ);
+    }
+
+    private boolean isBedFromLocation(Bed bed, Location bedLoc, Location loc) {
+        if (bed.isHeadOfBed()) {
+            switch (bed.getFacing()) {
+            case NORTH: {
+                loc.add(0, 0, 1);
+            } break;
+            case SOUTH: {
+                loc.subtract(0, 0, 1);
+            } break;
+            case EAST: {
+                loc.add(1, 0, 0);
+            } break;
+            case WEST: {
+                loc.subtract(1, 0, 0);
+            } break;
+            default: return false;
+            }
+        }
+        return bedLoc.equals(loc);
     }
 
     @EventHandler
@@ -436,7 +467,9 @@ public class MatchManager implements Listener {
                     int idx = team.getTeamColor().ordinal();
                     if (this.map.getTeams().size() <= idx) continue;
                     Location bedLoc = this.map.getTeams().get(idx).getBedLoc();
-                    if (bedLoc == null || !ev.getBlock().getLocation().equals(bedLoc) || !this.teams.get(idx).isAlive()) continue;
+                    if (bedLoc == null || !this.teams.get(idx).isAlive()) continue;
+                    Block bedBlock = ev.getBlock();
+                    if (!(bedBlock.getState().getData() instanceof Directional) || !(bedBlock.getState().getData() instanceof Bed) || !isBedFromLocation((Bed)bedBlock.getState().getData(), bedLoc, bedBlock.getLocation())) continue;
                     if (this.matchPlayers.get(ev.getPlayer()).getTeam().ordinal() == idx) {
                         ev.getPlayer().sendMessage("You can't break your own bed!");
                         return;
@@ -468,7 +501,7 @@ public class MatchManager implements Listener {
         if (isInProgress()) return;
         ev.setCancelled(true);
         ItemStack item = ev.getItem();
-        if (item == null) return;
+        if (item == null || item.getItemMeta() == null) return;
         if (item.getItemMeta().getDisplayName().equalsIgnoreCase("Team selector") && (ev.getAction() == Action.RIGHT_CLICK_AIR || ev.getAction() == Action.RIGHT_CLICK_BLOCK)) {
             TeamSelectorInv inv = new TeamSelectorInv(this.bedwars, ev.getPlayer());
             this.bedwars.openInventory(inv);
@@ -502,10 +535,13 @@ public class MatchManager implements Listener {
             map.setTeams(new ArrayList<>());
         }
         map.getWorld().setGameRuleValue("doDaylightCycle", "false");
+        teamGenerators = null;
+        diamondGenerators = null;
+        emeraldGenerators = null;
         matchState = MatchState.LOBBY;
 
         teams = new ArrayList<>();
-        for (int i = 0; i < this.bedwars.getSettingsManager().getMaxTeamCount(); ++i) {
+        for (int i = 0; i < this.bedwars.getSettings().maxTeamCount; ++i) {
             MapTeam mapTeam = ((i<this.map.getTeams().size())?this.map.getTeams().get(i):null);
             Location bedLoc = ((mapTeam == null)?new Location(map.getWorld(), 0, 1, 0):mapTeam.getBedLoc());
             TeamColor teamColor = TeamColor.values()[i];
@@ -525,10 +561,10 @@ public class MatchManager implements Listener {
         Stack<Player> playerStack = new Stack<>();
         ListIterator<Player> it = lobbyPlayers.listIterator(lobbyPlayers.size());
         while (it.hasPrevious()) {
-            Player plr = it.previous();
-            playerStack.push(plr);
+            playerStack.push(it.previous());
         }
-        for (int i = 0; i < this.bedwars.getSettingsManager().getMaxTeamCount(); ++i) {
+        teamGenerators = new ArrayList<>();
+        for (int i = 0; i < this.bedwars.getSettings().maxTeamCount; ++i) {
             Team team = this.teams.get(i);
             while (!team.isFull() && !playerStack.isEmpty()) {
                 Player prl = playerStack.pop();
@@ -538,13 +574,38 @@ public class MatchManager implements Listener {
             }
             for (MatchPlayer matchPlr : team.getPlayers()) {
                 Player plr = matchPlr.getPlayer();
-                plr.teleport(new Location(map.getWorld(), 0.5, 1, 0.5));
-                plr.setFallDistance(0);
+                saveTeleport(plr, new Location(map.getWorld(), 0.5, 1, 0.5));
                 plr.getInventory().clear();
                 plr.setHealth(plr.getMaxHealth());
             }
+            {
+                Location loc = this.map.getTeams().get(i).getGenerator();
+                if (loc == null) continue;
+                Generator gen = new Generator(loc, this.map.getTeamLoot());
+                gen.runTaskTimer(this.bedwars, 0L, 20L);
+                teamGenerators.add(gen);
+            }
         }
         lobbyPlayers = null;
+
+        List<GenLoot> diamondLoot = new ArrayList<>();
+        diamondLoot.add(new GenLoot(Material.DIAMOND, 1, 30));
+        List<GenLoot> emeraldLoot = new ArrayList<>();
+        emeraldLoot.add(new GenLoot(Material.EMERALD, 1, 60));
+
+        diamondGenerators = new ArrayList<>();
+        for (Location loc : map.getDiamondGenerators()) {
+            Generator gen = new Generator(loc, diamondLoot);
+            gen.runTaskTimer(this.bedwars, 0L, 20L);
+            diamondGenerators.add(gen);
+        }
+
+        emeraldGenerators = new ArrayList<>();
+        for (Location loc : map.getEmeraldGenerators()) {
+            Generator gen = new Generator(loc, emeraldLoot);
+            gen.runTaskTimer(this.bedwars, 0L, 20L);
+            emeraldGenerators.add(gen);
+        }
 
         if (map.getLobbyBound1() != null && map.getLobbyBound2() != null) { // Fill lobby with air
             int sx = Math.min(map.getLobbyBound1().getBlockX(), map.getLobbyBound2().getBlockX());
@@ -602,6 +663,9 @@ public class MatchManager implements Listener {
                 break;
             }
         }
+        for (Generator gen : teamGenerators)    gen.cancel();
+        for (Generator gen : diamondGenerators) gen.cancel();
+        for (Generator gen : emeraldGenerators) gen.cancel();
         for (Player prl : players) {
             if (matchPlayers.get(prl).getTeam() == winningTeam) {
                 prl.setAllowFlight(true);

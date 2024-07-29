@@ -65,7 +65,7 @@ public class Team {
     }
 
     public boolean isFull() {
-        return players.size() == Bedwars.getInstance().getSettingsManager().getMaxTeamSize();
+        return players.size() == Bedwars.getInstance().getSettings().maxTeamCount;
     }
 
     public boolean containsPlayer(Player plr) {

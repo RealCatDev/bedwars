@@ -3,6 +3,9 @@ package me.catdev.map;
 import me.catdev.Bedwars;
 import me.catdev.config.ConfigManager;
 import me.catdev.match.TeamColor;
+import me.catdev.match.generator.GenLoot;
+import me.catdev.match.generator.Generator;
+import me.catdev.utils.ConfigUtils;
 import me.catdev.utils.FileUtils;
 import me.catdev.utils.InventoryHelper;
 import org.bukkit.*;
@@ -24,6 +27,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 public class MapManager implements Listener {
 
@@ -49,18 +53,6 @@ public class MapManager implements Listener {
         return new Location(world, config.getDouble(path+".x"), config.getDouble(path+".y"), config.getDouble(path+".z"), (float)config.getDouble(path+".yaw"), (float)config.getDouble(path+".pitch"));
     }
 
-    public static java.util.Map<String, Object> convertToMap(ConfigurationSection section) {
-        java.util.Map<String, Object> map = new HashMap<>();
-        for (String key : section.getKeys(false)) {
-            Object value = section.get(key);
-            if (value instanceof ConfigurationSection) {
-                value = convertToMap((ConfigurationSection) value);
-            }
-            map.put(key, value);
-        }
-        return map;
-    }
-
     private String GetWorldPath(String mapname) {
         File listFile = new File(this.bedwars.getDataFolder(), "mapList.yml");
         if (listFile.exists()) {
@@ -71,8 +63,7 @@ public class MapManager implements Listener {
                 ex.printStackTrace();
                 return null;
             }
-            java.util.Map<String, Object> meh = convertToMap(config);
-            return (String)((java.util.Map<String, Object>)meh.get("maps")).get(mapname);
+            return (String)((java.util.Map<String, Object>)ConfigUtils.convertToMap(config).get("maps")).get(mapname);
         }
         return null;
     }
@@ -87,8 +78,7 @@ public class MapManager implements Listener {
                 ex.printStackTrace();
                 return null;
             }
-            java.util.Map<String, Object> meh = convertToMap(config);
-            return (Map)meh.get(mapname);
+            return (Map)ConfigUtils.convertToMap(config).get(mapname);
         }
         return null;
     }
@@ -134,8 +124,12 @@ public class MapManager implements Listener {
     private final ItemStack teamSelectorItem = new ItemStack(Material.WOOL, 1, (short)14);
     private final ItemStack setSpawnItem = new ItemStack(Material.STICK, 1);
     private final ItemStack setBedItem = new ItemStack(Material.BED, 1);
+    private final ItemStack setGeneratorItem = new ItemStack(Material.IRON_INGOT, 1);
+    private final ItemStack diamondGenItem = new ItemStack(Material.DIAMOND, 1);
+    private final ItemStack emeraldGenItem = new ItemStack(Material.EMERALD, 1);
     private TeamColor wizardSelectedTeam = null;
     private ArrayList<MapTeam> teams = null;
+    private List<GenLoot> defaultIslandLoot = null;
     private String wizardMapname = null;
     private String wizardWorldPath = null;
     private Map wizardMap = null;
@@ -198,6 +192,30 @@ public class MapManager implements Listener {
             meta.setLore(lore);
             setBedItem.setItemMeta(meta);
         }
+        {
+            ItemMeta meta = setGeneratorItem.getItemMeta();
+            meta.setDisplayName("Set generator");
+            ArrayList<String> lore = new ArrayList<>();
+            lore.add("Right click to set your current position as selected team's generator!");
+            meta.setLore(lore);
+            setGeneratorItem.setItemMeta(meta);
+        }
+        {
+            ItemMeta meta = diamondGenItem.getItemMeta();
+            meta.setDisplayName("Add diamond generator");
+            ArrayList<String> lore = new ArrayList<>();
+            lore.add("Right click to add new diamond generator with your current position!");
+            meta.setLore(lore);
+            diamondGenItem.setItemMeta(meta);
+        }
+        {
+            ItemMeta meta = emeraldGenItem.getItemMeta();
+            meta.setDisplayName("Add diamond generator");
+            ArrayList<String> lore = new ArrayList<>();
+            lore.add("Right click to add new emerald generator with your current position!");
+            meta.setLore(lore);
+            emeraldGenItem.setItemMeta(meta);
+        }
     }
 
     public boolean startWizard(Player plr, String mapname) {
@@ -207,6 +225,9 @@ public class MapManager implements Listener {
         wizardMapname = mapname;
         wizardMap = loadMap(mapname);
         teams = wizardMap.getTeams();
+        defaultIslandLoot = new ArrayList<>();
+        defaultIslandLoot.add(new GenLoot(Material.IRON_INGOT, 1, 1));
+        defaultIslandLoot.add(new GenLoot(Material.GOLD_INGOT, 1, 10));
         wizardWorldPath = GetWorldPath(mapname);
         plr.teleport(new Location(wizardMap.getWorld(), 0, 0, 0));
         wizardSelectTeam(null);
@@ -251,7 +272,7 @@ public class MapManager implements Listener {
 
     public boolean resetMap() {
         if (this.wizardMap == null) return false;
-        this.wizardMap = new Map(null, null, null, null, null);
+        this.wizardMap = new Map(null, null, null, null, null, null, null, null);
         return true;
     }
 
@@ -291,10 +312,13 @@ public class MapManager implements Listener {
             inv.setItem(1, lobbyPos1Item);
             inv.setItem(2, lobbyPos2Item);
             inv.setItem(3, boundItem);
+            inv.setItem(4, diamondGenItem);
+            inv.setItem(5, emeraldGenItem);
         } else {
             teamSelectorItem.setData(new MaterialData(Material.WOOL, (byte)team.getData()));
             inv.setItem(0, setSpawnItem);
             inv.setItem(1, setBedItem);
+            inv.setItem(2, setGeneratorItem);
         }
         inv.setItem(8, teamSelectorItem);
     }
@@ -316,7 +340,7 @@ public class MapManager implements Listener {
                 ItemStack is = null;
                 if (i < 9 || i >= 18) is = empty;
                 if (i >= 9 && i < 18) {
-                    if ((i-9) < this.bedwars.getSettingsManager().getMaxTeamCount()) {
+                    if ((i-9) < this.bedwars.getSettings().maxTeamCount) {
                         is = new ItemStack(Material.WOOL, 1, TeamColor.values()[i-9].getData());
                         ItemMeta newMeta = is.getItemMeta();
                         newMeta.setDisplayName(TeamColor.values()[i-9].getName());
@@ -349,11 +373,9 @@ public class MapManager implements Listener {
 
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent ev) {
-        if (playerInWizard == null) return;
         Player plr = ev.getPlayer();
-        if (playerInWizard.getUniqueId() != plr.getUniqueId()) return;
         ItemStack itemStack = ev.getItem();
-        if (itemStack == null) return;
+        if (playerInWizard == null || playerInWizard.getUniqueId() != plr.getUniqueId() || itemStack == null) return;
         ev.setCancelled(true);
         if (itemStack.getItemMeta().equals(setLobbyItem.getItemMeta())) {
             wizardMap.setLobbySpawnLoc(plr.getLocation());
@@ -381,6 +403,15 @@ public class MapManager implements Listener {
         } else if (itemStack.getItemMeta().equals(setBedItem.getItemMeta())) {
             assertTeamAvailable(this.wizardSelectedTeam.ordinal());
             this.teams.get(this.wizardSelectedTeam.ordinal()).setBedLoc(ev.getClickedBlock().getLocation());
+        } else if (itemStack.getItemMeta().equals(setGeneratorItem.getItemMeta())) {
+            assertTeamAvailable(this.wizardSelectedTeam.ordinal());
+            this.teams.get(this.wizardSelectedTeam.ordinal()).setGeneratorLocation(plr.getLocation());
+        } else if (itemStack.getItemMeta().equals(diamondGenItem.getItemMeta())) {
+            if (this.wizardMap.getDiamondGenerators() == null) this.wizardMap.setDiamondGenerators(new ArrayList<>());
+            this.wizardMap.addDiamondGenerator(plr.getLocation());
+        } else if (itemStack.getItemMeta().equals(emeraldGenItem.getItemMeta())) {
+            if (this.wizardMap.getEmeraldGenerators() == null) this.wizardMap.setEmeraldGenerators(new ArrayList<>());
+            this.wizardMap.addEmeraldGenerator(plr.getLocation());
         } else {
             ev.setCancelled(false);
         }
