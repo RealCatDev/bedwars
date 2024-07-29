@@ -2,6 +2,7 @@ package me.catdev.map;
 
 import me.catdev.Bedwars;
 import me.catdev.config.ConfigManager;
+import me.catdev.match.Team;
 import me.catdev.match.TeamColor;
 import me.catdev.match.generator.GenLoot;
 import me.catdev.match.generator.Generator;
@@ -128,7 +129,7 @@ public class MapManager implements Listener {
     private final ItemStack diamondGenItem = new ItemStack(Material.DIAMOND, 1);
     private final ItemStack emeraldGenItem = new ItemStack(Material.EMERALD, 1);
     private TeamColor wizardSelectedTeam = null;
-    private ArrayList<MapTeam> teams = null;
+    private ArrayList<Team> teams = null;
     private List<GenLoot> defaultIslandLoot = null;
     private String wizardMapname = null;
     private String wizardWorldPath = null;
@@ -366,7 +367,7 @@ public class MapManager implements Listener {
         }
         if (this.teams.size() < index+1) {
             for (int i = this.teams.size(); i < index+1; ++i) {
-                this.teams.add(new MapTeam(TeamColor.values()[i]));
+                this.teams.add(new Team(TeamColor.values()[i]));
             }
         }
     }

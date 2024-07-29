@@ -1,5 +1,6 @@
 package me.catdev.map;
 
+import me.catdev.match.Team;
 import me.catdev.match.generator.GenLoot;
 import me.catdev.match.generator.Generator;
 import org.bukkit.Location;
@@ -18,13 +19,13 @@ public class Map implements ConfigurationSerializable {
     private Location lobbyBound1;
     private Location lobbyBound2;
     private ArrayList<Location> bounds;
-    private ArrayList<MapTeam> teams;
+    private ArrayList<Team> teams;
     private ArrayList<GenLoot> teamLoot;
     private ArrayList<Location> diamondGenerators;
     private ArrayList<Location> emeraldGenerators;
     private World world;
 
-    public Map(Location lobbySpawnLoc, Location lobbyBound1, Location lobbyBound2, ArrayList<Location> bounds, ArrayList<MapTeam> teams, ArrayList<GenLoot> teamLoot, ArrayList<Location> diamondGenerators, ArrayList<Location> emeraldGenerators) {
+    public Map(Location lobbySpawnLoc, Location lobbyBound1, Location lobbyBound2, ArrayList<Location> bounds, ArrayList<Team> teams, ArrayList<GenLoot> teamLoot, ArrayList<Location> diamondGenerators, ArrayList<Location> emeraldGenerators) {
         this.lobbySpawnLoc = lobbySpawnLoc;
         this.lobbyBound1 = lobbyBound1;
         this.lobbyBound2 = lobbyBound2;
@@ -56,7 +57,7 @@ public class Map implements ConfigurationSerializable {
         return bounds;
     }
 
-    public ArrayList<MapTeam> getTeams() {
+    public ArrayList<Team> getTeams() {
         return teams;
     }
 
@@ -99,8 +100,12 @@ public class Map implements ConfigurationSerializable {
         this.bounds.add(bound);
     }
 
-    public void setTeams(ArrayList<MapTeam> teams) {
+    public void setTeams(ArrayList<Team> teams) {
         this.teams = teams;
+    }
+
+    public void addTeam(Team team) {
+        this.teams.add(team);
     }
 
     public void setTeamLoot(ArrayList<GenLoot> teamLoot) {
@@ -151,10 +156,10 @@ public class Map implements ConfigurationSerializable {
             bounds = ((List<Location>) deserialize.get("bounds")).stream()
                     .collect(Collectors.toCollection(ArrayList::new));
         }
-        ArrayList<MapTeam> teams = null;
+        ArrayList<Team> teams = null;
         if (deserialize.get("teams") == null) teams = new ArrayList<>();
         else {
-            teams = ((List<MapTeam>) deserialize.get("teams")).stream()
+            teams = ((List<Team>) deserialize.get("teams")).stream()
                     .collect(Collectors.toCollection(ArrayList::new));
         }
         ArrayList<GenLoot> teamLoot = null;

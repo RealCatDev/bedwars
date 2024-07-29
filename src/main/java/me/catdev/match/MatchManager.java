@@ -1,9 +1,7 @@
 package me.catdev.match;
 
 import me.catdev.Bedwars;
-import me.catdev.common.ServerType;
 import me.catdev.map.Map;
-import me.catdev.map.MapTeam;
 import me.catdev.match.generator.GenLoot;
 import me.catdev.match.generator.Generator;
 import me.catdev.utils.Evaluator;
@@ -11,7 +9,6 @@ import me.catdev.utils.InventoryHelper;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
-import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
@@ -253,7 +250,6 @@ public class MatchManager implements Listener {
     private Countdown countdown = null;
     private Map map = null;
     private final PotionEffect saturation = new PotionEffect(PotionEffectType.SATURATION, 99999, 1, false, false);
-    private ArrayList<Team> teams = null;
     private ArrayList<Player> players = null;
     private ArrayList<Player> lobbyPlayers = null;
     private ArrayList<Generator> teamGenerators = null;
@@ -352,7 +348,7 @@ public class MatchManager implements Listener {
 
         if (matchState == MatchState.INGAME) {
             // TODO: Players should be able to rejoin
-            teams.get(matchPlayers.get(plr).getTeam().ordinal()).removePlayer(plr);
+            this.map.getTeams().get(matchPlayers.get(plr).getTeam().ordinal()).removePlayer(plr);
             matchPlayers.remove(plr);
             showScoreboard();
         }
@@ -375,9 +371,9 @@ public class MatchManager implements Listener {
                 newLoc.setY(newLoc.getY()+6);
                 plr.setGameMode(GameMode.SPECTATOR);
                 saveTeleport(plr, newLoc);
-                boolean b = teams.get(matchPlayer.getTeam().ordinal()).playerDied(plr);
+                boolean b = this.map.getTeams().get(matchPlayer.getTeam().ordinal()).playerDied(plr);
                 int aliveTeams = 0;
-                for (Team team : teams) {
+                for (Team team : this.map.getTeams()) {
                     if (team.isAlive()) {
                         ++aliveTeams;
                     }
@@ -463,11 +459,11 @@ public class MatchManager implements Listener {
             ev.setCancelled(true);
             if (matchState == MatchState.INGAME) {
                 boolean found = false;
-                for (Team team : this.teams) {
+                for (Team team : this.map.getTeams()) {
                     int idx = team.getTeamColor().ordinal();
                     if (this.map.getTeams().size() <= idx) continue;
                     Location bedLoc = this.map.getTeams().get(idx).getBedLoc();
-                    if (bedLoc == null || !this.teams.get(idx).isAlive()) continue;
+                    if (bedLoc == null || !this.map.getTeams().get(idx).isAlive()) continue;
                     Block bedBlock = ev.getBlock();
                     if (!(bedBlock.getState().getData() instanceof Directional) || !(bedBlock.getState().getData() instanceof Bed) || !isBedFromLocation((Bed)bedBlock.getState().getData(), bedLoc, bedBlock.getLocation())) continue;
                     if (this.matchPlayers.get(ev.getPlayer()).getTeam().ordinal() == idx) {
@@ -540,13 +536,8 @@ public class MatchManager implements Listener {
         emeraldGenerators = null;
         matchState = MatchState.LOBBY;
 
-        teams = new ArrayList<>();
-        for (int i = 0; i < this.bedwars.getSettings().maxTeamCount; ++i) {
-            MapTeam mapTeam = ((i<this.map.getTeams().size())?this.map.getTeams().get(i):null);
-            Location bedLoc = ((mapTeam == null)?new Location(map.getWorld(), 0, 1, 0):mapTeam.getBedLoc());
-            TeamColor teamColor = TeamColor.values()[i];
-            Team team = new Team(teamColor, bedLoc);
-            teams.add(team);
+        for (int i = this.map.getTeams().size(); i < this.bedwars.getSettings().maxTeamCount; ++i) {
+            this.map.addTeam(new Team(TeamColor.values()[i], null, null, new Location(map.getWorld(), 0, 1, 0)));
         }
 
         return true;
@@ -565,7 +556,7 @@ public class MatchManager implements Listener {
         }
         teamGenerators = new ArrayList<>();
         for (int i = 0; i < this.bedwars.getSettings().maxTeamCount; ++i) {
-            Team team = this.teams.get(i);
+            Team team = this.map.getTeams().get(i);
             while (!team.isFull() && !playerStack.isEmpty()) {
                 Player prl = playerStack.pop();
                 MatchPlayer matchPrl = new MatchPlayer(prl, TeamColor.values()[i]);
@@ -634,14 +625,14 @@ public class MatchManager implements Listener {
         MatchPlayer matchPlr = null;
         if (matchPlayers.containsKey(plr)) {
             matchPlr = matchPlayers.get(plr);
-            teams.get(matchPlr.getTeam().ordinal()).removePlayer(plr);
+            this.map.getTeams().get(matchPlr.getTeam().ordinal()).removePlayer(plr);
             if (teamColor == null) {
                 matchPlayers.remove(plr);
             } else {
                 matchPlr.setTeam(teamColor);
             }
         }
-        Team newTeam = ((teamColor==null)?null:teams.get(teamColor.ordinal()));
+        Team newTeam = ((teamColor==null)?null:this.map.getTeams().get(teamColor.ordinal()));
         if (newTeam != null && newTeam.isFull()) return false;
         if (newTeam != null) {
             if (matchPlr == null) {
@@ -659,7 +650,7 @@ public class MatchManager implements Listener {
     void Finish() {
         matchState = MatchState.FINISH;
         TeamColor winningTeam = matchPlayers.get(players.get(0)).getTeam();
-        for (Team team : teams) {
+        for (Team team : this.map.getTeams()) {
             if (team.isAlive()) {
                 winningTeam = team.getTeamColor();
                 break;
@@ -690,6 +681,6 @@ public class MatchManager implements Listener {
     }
 
     public ArrayList<Team> getTeams() {
-        return teams;
+        return this.map.getTeams();
     }
 }

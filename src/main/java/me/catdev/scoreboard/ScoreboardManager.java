@@ -23,31 +23,16 @@ public class ScoreboardManager {
         if (this.bedwars.getSettings().serverType == ServerType.MATCH) {
             if (this.bedwars.getMatchManager().isInProgress()) {
                 ArrayList<Team> teams = this.bedwars.getMatchManager().getTeams();
-                String[] lines = {
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "CatDevsBedwars"
-                };
-                lines[1] = "NEXT EVENT";
-                int i = 0;
-                for (; i < teams.size(); ++i) {
-                    Team team = teams.get(i);
-                    lines[3+i] = ChatColor.translateAlternateColorCodes('&', " "  + team.getTeamColor().getStyle() + team.getTeamColor().getName() + "&r: " + (team.isAlive()?(team.isBedAlive()?"✔":Integer.toString(team.alivePlayerCount())):"x") + (team.containsPlayer(player)?" (you)":""));
+                ArrayList<String> lines = new ArrayList<>();
+                lines.add("");
+                lines.add("NEXT EVENT");
+                lines.add("");
+                for (Team team : teams) {
+                    String line = " " + team.getTeamColor().getStyle() + team.getTeamColor().getName() + "&r: " + (team.isAlive()?(team.isBedAlive()?"✔":Integer.toString(team.alivePlayerCount())):"x") + (team.containsPlayer(player)?" (you)":"");
+                    lines.add(ChatColor.translateAlternateColorCodes('&', line));
                 }
-                int j = 3+i+1;
-                lines[j] = "Kills: 0";
+                lines.add("");
+                lines.add("Kills: 0");
                 board.updateLines(lines);
             }
         }

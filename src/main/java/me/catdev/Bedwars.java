@@ -2,6 +2,7 @@ package me.catdev;
 
 import me.catdev.commands.BedwarsCommand;
 import me.catdev.common.ServerType;
+import me.catdev.match.Team;
 import me.catdev.match.generator.GenLoot;
 import me.catdev.match.generator.Generator;
 import me.catdev.settings.Settings;
@@ -11,7 +12,6 @@ import me.catdev.events.EnvEvents;
 import me.catdev.events.InventoryEvents;
 import me.catdev.map.Map;
 import me.catdev.map.MapManager;
-import me.catdev.map.MapTeam;
 import me.catdev.match.MatchManager;
 import me.catdev.scoreboard.ScoreboardManager;
 import me.catdev.utils.InventoryHelper;
@@ -81,7 +81,7 @@ public final class Bedwars extends JavaPlugin {
 
     static {
         ConfigurationSerialization.registerClass(Map.class);
-        ConfigurationSerialization.registerClass(MapTeam.class);
+        ConfigurationSerialization.registerClass(Team.class);
         ConfigurationSerialization.registerClass(Generator.class);
         ConfigurationSerialization.registerClass(GenLoot.class);
     }
