@@ -269,7 +269,7 @@ public class MatchManager implements Listener {
         }
     }
 
-    private void saveTeleport(Player plr, Location loc) {
+    private void safeTeleport(Player plr, Location loc) {
         plr.setFallDistance(0);
         plr.teleport(loc);
         plr.setFallDistance(0);
@@ -307,7 +307,7 @@ public class MatchManager implements Listener {
             StartCountdown(true);
         }
 
-        saveTeleport(plr, map.getLobbySpawnLoc());
+        safeTeleport(plr, map.getLobbySpawnLoc());
         plr.getInventory().clear();
         {
             ItemStack selectorItem = new ItemStack(Material.WOOL, 1, TeamColor.WHITE.getData());
@@ -362,7 +362,7 @@ public class MatchManager implements Listener {
         switch (matchState) {
             case LOBBY:
             case STARTING: {
-                saveTeleport(plr, map.getLobbySpawnLoc());
+                safeTeleport(plr, map.getLobbySpawnLoc());
                 plr.setGameMode(GameMode.SURVIVAL);
             } break;
             case INGAME: {
@@ -370,7 +370,7 @@ public class MatchManager implements Listener {
                 Location newLoc = map.getLobbySpawnLoc();
                 newLoc.setY(newLoc.getY()+6);
                 plr.setGameMode(GameMode.SPECTATOR);
-                saveTeleport(plr, newLoc);
+                safeTeleport(plr, newLoc);
                 boolean b = this.map.getTeams().get(matchPlayer.getTeam().ordinal()).playerDied(plr);
                 int aliveTeams = 0;
                 for (Team team : this.map.getTeams()) {
@@ -389,7 +389,7 @@ public class MatchManager implements Listener {
                 }
             } break;
             case FINISH: {
-                saveTeleport(plr, new Location(map.getWorld(), 0.5, 1, 0.5));
+                safeTeleport(plr, new Location(map.getWorld(), 0.5, 1, 0.5));
                 plr.setGameMode(GameMode.SURVIVAL);
                 plr.setAllowFlight(true);
             }
@@ -567,7 +567,7 @@ public class MatchManager implements Listener {
                 Player plr = matchPlr.getPlayer();
                 Location respawnLoc = this.map.getTeams().get(team.getTeamColor().ordinal()).getSpawnLoc();
                 if (respawnLoc == null) respawnLoc = new Location(map.getWorld(), 0.5, 1, 0.5);
-                saveTeleport(plr, respawnLoc);
+                safeTeleport(plr, respawnLoc);
                 plr.getInventory().clear();
                 plr.setHealth(plr.getMaxHealth());
             }
